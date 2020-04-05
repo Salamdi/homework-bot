@@ -30,11 +30,13 @@ const run = async () => {
 }
 
 app.use(bp.json());
-app.use(`/${process.env.TELEGRAM_BOT_TOKEN}`, async (req, res) => {
+app.use(`/${ process.env.TELEGRAM_BOT_TOKEN }`, async (req, res) => {
   try {
     const { body } = req;
     if (body.message.new_chat_participant && body.message.new_chat_participant.id === BOT_ID) {
       CHAT_ID = body.message.chat.id;
+      // grab chat info to set the fallback chat_id
+      console.log(body.message.chat);
     }
     if (body.message.chat.type !== 'private') {
       res.status(200);
@@ -42,18 +44,20 @@ app.use(`/${process.env.TELEGRAM_BOT_TOKEN}`, async (req, res) => {
       return;
     }
     const { message: { text } } = body;
-    const { data: { result: { pinned_message } } } = await axios.post(`${ TELEGRAM_API_URL }/getChat`, { chat_id: CHAT_ID });
+    const { data: { result: { pinned_message } } } = await axios.post(`${ TELEGRAM_API_URL }/getChat`, {
+      chat_id: CHAT_ID || process.env.CHAT_ID,
+    });
     // remove today's homework
     const last2 = pinned_message.text.split('\n\n').slice(1).join('\n\n');
 
     // append new homework
     const textToPin = `${ last2 }\n\n${ text }`;
     const { data: { result: { message_id } } } = await axios.post(`${ TELEGRAM_API_URL }/sendMessage`, {
-      chat_id: CHAT_ID,
+      chat_id: CHAT_ID || process.env.CHAT_ID,
       text: textToPin,
     });
     await axios.post(`${ TELEGRAM_API_URL }/pinChatMessage`, {
-      chat_id: CHAT_ID,
+      chat_id: CHAT_ID || process.env.CHAT_ID,
       message_id,
     });
   } catch (err) {
